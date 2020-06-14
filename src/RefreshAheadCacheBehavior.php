@@ -333,10 +333,15 @@ class RefreshAheadCacheBehavior extends Behavior
             }
         }
 
-        // Generate the value synchronously and set it in the data cache
+        // Generate the value synchronously
         $value = $refreshAheadConfig->generate($this->getDataCache());
-        if (!$this->getDataCache()->set($key, $value, $duration, $dependency)) {
-            Yii::warning('Failed to set cache value for key ' . serialize($key), __METHOD__);
+
+        // we promised not to set the value in cache if the generator returned `false`
+        if ($value !== false) {
+            $setCacheResult = $this->getDataCache()->set($key, $value, $duration, $dependency);
+            if (!$setCacheResult) {
+                Yii::warning('Failed to set cache value for key ' . serialize($key), __METHOD__);
+            }
         }
 
         $this->releaseLock($key);
