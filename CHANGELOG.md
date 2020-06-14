@@ -7,15 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org).
 
 
-[unreleased]
-------------
+[v0.2.0]
+--------
+
+### Changed
+- Increase visibility of `generateAndSet()` to public
 
 ### Fixed
 - Do not set `valse` value returned by generator into cache
 
 
-[v0.1]
-------
+[v0.1.0]
+--------
 
 ### Added
 - Initial implementation
