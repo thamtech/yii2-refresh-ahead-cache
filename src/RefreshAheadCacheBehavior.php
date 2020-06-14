@@ -312,7 +312,7 @@ class RefreshAheadCacheBehavior extends Behavior
      *
      * @return mixed generated data value
      */
-    protected function generateAndSet($key, $refreshAheadConfig, $duration = null, $dependency = null)
+    public function generateAndSet($key, $refreshAheadConfig, $duration = null, $dependency = null)
     {
         $refreshAheadConfig = RefreshAheadConfig::ensure($refreshAheadConfig);
 

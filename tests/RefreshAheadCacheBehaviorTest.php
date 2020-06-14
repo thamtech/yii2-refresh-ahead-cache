@@ -33,11 +33,6 @@ class MockRefreshAheadCacheBehavior extends RefreshAheadCacheBehavior
     {
         return parent::releaseLock($dataKey);
     }
-
-    public function generateAndSet($key, $refreshAheadConfig, $duration = null, $dependency = null)
-    {
-        return parent::generateAndSet($key, $refreshAheadConfig, $duration, $dependency);
-    }
 }
 
 class MockBuildKeyCache extends \yii\caching\DummyCache

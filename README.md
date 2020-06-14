@@ -216,7 +216,7 @@ property:
 
 ```php
 <?php
-$data = $cache->getRefreshOrSet($key, [
+$refreshAheadConfig = [
     'refresh' => function ($cache) {
         return $this->taskQueue->append('calculateSomething');
     },
@@ -229,7 +229,9 @@ $data = $cache->getRefreshOrSet($key, [
     // 'generate', in case another process was generating and caching the value
     // already.
     'mutexLockTimeout' => 12,
-], $duration, $dependency);
+];
+
+$data = $cache->getRefreshOrSet($key, $refreshAheadConfig, $duration, $dependency);
 ```
 
 By configuring a `mutex` component on the behavior and setting the
@@ -242,6 +244,20 @@ cache. The other processes wait for the lock to be released. Once the first
 process releases the lock, the value has been computed and is in cache, so the
 other processes will check for it in cache, find it, and return it without
 having to invoke the `generate` callable.
+
+If your task queue can run asynchronously, such as in a cron task, you can
+use the same `$refreshAheadConfig` in a call to `generateAndSet()` to complete
+the refresh process and update the cache value in the background. For example,
+
+```php
+<?php
+// using the same parameters defined in the previous example:
+$data = $cache->generateAndSet($key, $refreshAheadConfig, $duration, $dependency);
+```
+
+This will invoke the `generate` callable (if the item hasn't already been cached
+by another invocation of `generate` at the same time), and sets the result in
+the cache before returning it.
 
 
 See Also
