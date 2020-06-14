@@ -261,17 +261,9 @@ class RefreshAheadCacheBehavior extends Behavior
             return $value;
         }
 
-        // We ensure $refreshAheadConfig both here and in the if($needsRefresh)
-        // block above.
-        //
-        // We could have ensured it at the top of the method, but we might not
-        // have needed to use it if value was cached and refresh was not needed.
-        //
-        // Instead, we only instantiate above if refresh is needed, and below
-        // since we'll need to generate the data value synchronously.
         return $this->generateAndSet(
             $key,
-            RefreshAheadConfig::ensure($refreshAheadConfig),
+            $refreshAheadConfig,
             $duration,
             $dependency
         );
