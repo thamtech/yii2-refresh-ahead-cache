@@ -244,7 +244,7 @@ class RefreshAheadCacheBehavior extends Behavior
 
         $value = $this->getDataCache()->get($key);
 
-        if (($value = $this->getDataCache()->get($key)) !== false) {
+        if ($value !== false) {
             if ($needsRefresh) {
                 $refreshAheadConfig = RefreshAheadConfig::ensure($refreshAheadConfig);
                 if (!$refreshAheadConfig->refresh($this->getDataCache())) {
