@@ -34,7 +34,7 @@ class MockRefreshAheadCacheBehavior extends RefreshAheadCacheBehavior
         return parent::releaseLock($dataKey);
     }
 
-    public function generateAndSet($key, RefreshAheadConfig $refreshAheadConfig, $duration = null, $dependency = null)
+    public function generateAndSet($key, $refreshAheadConfig, $duration = null, $dependency = null)
     {
         return parent::generateAndSet($key, $refreshAheadConfig, $duration, $dependency);
     }

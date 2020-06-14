@@ -303,7 +303,11 @@ class RefreshAheadCacheBehavior extends Behavior
      *     a simple string or a complex data structure consisting of factors
      *     representing the key.
      *
-     * @param RefreshAheadConfig $refreshAheadConfig the RefreshAheadConfig object
+     * @param callable|\Closure|RefreshAheadConfig|array|Instance $refreshAheadConfig
+     *     A RefreshAheadConfig object, configuration array, or application
+     *     component ID, or a callable that will be used to synchronously
+     *     generate the data value to be cached.
+     *     In case the callable returns `false`, the value will not be cached.
      *
      * @param int $duration default duration in seconds before the cache will
      *     expire. If not set, [[defaultDuration]] value from the [[dataCache]]
@@ -316,8 +320,10 @@ class RefreshAheadCacheBehavior extends Behavior
      *
      * @return mixed generated data value
      */
-    protected function generateAndSet($key, RefreshAheadConfig $refreshAheadConfig, $duration = null, $dependency = null)
+    protected function generateAndSet($key, $refreshAheadConfig, $duration = null, $dependency = null)
     {
+        $refreshAheadConfig = RefreshAheadConfig::ensure($refreshAheadConfig);
+
         // The value needs to be generated, but it is possible another process
         // has already started generating it but it was not yet in cache when
         // we just checked.
