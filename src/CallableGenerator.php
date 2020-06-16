@@ -11,11 +11,8 @@ use yii\base\BaseObject;
 use yii\base\InvalidConfigException;
 
 /**
- * RefreshAheadConfig is a configuration object for a particular call
- * to [[RefreshAheadCacheBehavior::getRefreshOrSet()]]. This allows you
- * to define a `refresh` callable to asynchronously refresh a data value,
- * a `generate` callable to synchronously refresh a data value, and
- * optionally a mutex timeout.
+ * CallableGenerator is the default implementation of GeneratorInterface that uses
+ * callables for its [[generate()]] and [[refresh()]] methods.
  *
  * @property int $mutexLockTimeout How long to wait for another process to
  *     finish generating a data value before checking for it in cache and
@@ -29,7 +26,7 @@ use yii\base\InvalidConfigException;
  *
  * @author Tyler Ham <tyler@thamtech.com>
  */
-class RefreshAheadConfig extends BaseObject implements GeneratorInterface
+class CallableGenerator extends BaseObject implements GeneratorInterface
 {
     /**
      * @var callable|\Closure asynchronously refresh a data value (optional)

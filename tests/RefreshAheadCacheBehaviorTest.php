@@ -4,7 +4,7 @@ namespace thamtechunit\caching\refreshAhead;
 
 use thamtech\caching\refreshAhead\GeneratorInterface;
 use thamtech\caching\refreshAhead\RefreshAheadCacheBehavior;
-use thamtech\caching\refreshAhead\RefreshAheadConfig;
+use thamtech\caching\refreshAhead\CallableGenerator;
 use yii\base\InvalidConfigException;
 use Yii;
 

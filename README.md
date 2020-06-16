@@ -235,7 +235,7 @@ $data = $cache->getRefreshOrSet($key, $generator, $duration, $dependency);
 ```
 
 By configuring a `mutex` component on the behavior and setting the
-`mutexLockTimeout` as a RefreshAheadConfig property, the Refresh
+`mutexLockTimeout` as a property on the generator, the Refresh
 Ahead strategy will attempt to acquire a lock to invoke the `generate` callable.
 This way, if multiple requests come in around the same time when the value
 has expired (a [Cache Stampede](https://en.wikipedia.org/wiki/Cache_stampede)),

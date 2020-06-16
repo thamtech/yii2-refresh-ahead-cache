@@ -3,10 +3,10 @@
 namespace thamtechunit\caching\refreshAhead;
 
 use thamtech\caching\refreshAhead\RefreshAheadCacheBehavior;
-use thamtech\caching\refreshAhead\RefreshAheadConfig;
+use thamtech\caching\refreshAhead\CallableGenerator;
 use Yii;
 
-class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
+class CallableGeneratorTest extends \thamtechunit\caching\refreshAhead\TestCase
 {
     public $sideEffect = null;
 
@@ -17,16 +17,16 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
 
     public function testEnsureCallable()
     {
-        $config = $this->callableConfig();
+        $generator = $this->callableGenerator();
 
-        $this->assertEquals(0, $config->getMutexLockTimeout());
+        $this->assertEquals(0, $generator->getMutexLockTimeout());
 
         // calling refresh on config generated from a single callable should
         // return false and not call the callable
-        $this->assertFalse($config->refresh('cache'));
+        $this->assertFalse($generator->refresh('cache'));
         $this->assertNull($this->sideEffect);
 
-        $this->assertEquals('generated', $config->generate('cache'));
+        $this->assertEquals('generated', $generator->generate('cache'));
         $this->assertEquals('cache', $this->sideEffect);
     }
 
@@ -49,10 +49,10 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
      */
     public function testSetValidMutexLockTimeout($value, $expected)
     {
-        $config = $this->callableConfig();
+        $generator = $this->callableGenerator();
 
-        $config->setMutexLockTimeout($value);
-        $this->assertEquals($expected, $config->getMutexLockTimeout());
+        $generator->setMutexLockTimeout($value);
+        $this->assertEquals($expected, $generator->getMutexLockTimeout());
     }
 
     /**
@@ -60,10 +60,10 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
      */
     public function testAssignValidMutexLockTimeout($value, $expected)
     {
-        $config = $this->callableConfig();
+        $generator = $this->callableGenerator();
 
-        $config->mutexLockTimeout = $value;
-        $this->assertEquals($expected, $config->mutexLockTimeout);
+        $generator->mutexLockTimeout = $value;
+        $this->assertEquals($expected, $generator->mutexLockTimeout);
     }
 
     /**
@@ -71,11 +71,11 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
      */
     public function testSetInvalidMutexLockTimeout($value)
     {
-        $config = $this->callableConfig();
+        $generator = $this->callableGenerator();
 
         $this->expectException(\yii\base\InvalidConfigException::class);
         $this->expectExceptionMessage('mutexLockTimeout must be an integer 0 or greater.');
-        $config->setMutexLockTimeout($value);
+        $generator->setMutexLockTimeout($value);
     }
 
     /**
@@ -83,60 +83,60 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
      */
     public function testAssignInvalidMutexLockTimeout($value)
     {
-        $config = $this->callableConfig();
+        $generator = $this->callableGenerator();
 
         $this->expectException(\yii\base\InvalidConfigException::class);
         $this->expectExceptionMessage('mutexLockTimeout must be an integer 0 or greater.');
-        $config->mutexLockTimeout = $value;
+        $generator->mutexLockTimeout = $value;
     }
 
     public function testSetRefreshNull()
     {
-        $config = $this->callableConfig();
-        $config->setRefresh(null);
-        $this->assertFalse($config->refresh('cache'));
+        $generator = $this->callableGenerator();
+        $generator->setRefresh(null);
+        $this->assertFalse($generator->refresh('cache'));
         $this->assertNull($this->sideEffect);
     }
 
     public function testSetRefreshBad()
     {
-        $config = $this->callableConfig();
+        $generator = $this->callableGenerator();
 
         $this->expectException(\yii\base\InvalidConfigException::class);
         $this->expectExceptionMessage('refresh must be a callable.');
-        $config->setRefresh('not a callable');
+        $generator->setRefresh('not a callable');
     }
 
     public function testSetGenerateNull()
     {
-        $config = $this->callableConfig();
+        $generator = $this->callableGenerator();
 
         $this->expectException(\yii\base\InvalidConfigException::class);
         $this->expectExceptionMessage('generate must be a callable.');
-        $config->setGenerate(null);
+        $generator->setGenerate(null);
     }
 
     public function testInitNullGenerate()
     {
         $this->expectException(\yii\base\InvalidConfigException::class);
         $this->expectExceptionMessage('You must specify a generate callable.');
-        $config = Yii::createObject([
-            'class' => 'thamtech\caching\refreshAhead\RefreshAheadConfig',
+        $generator = Yii::createObject([
+            'class' => 'thamtech\caching\refreshAhead\CallableGenerator',
         ]);
     }
 
     public function testSetGenerateBad()
     {
-        $config = $this->callableConfig();
+        $generator = $this->callableGenerator();
 
         $this->expectException(\yii\base\InvalidConfigException::class);
         $this->expectExceptionMessage('generate must be a callable.');
-        $config->setGenerate('not a callable');
+        $generator->setGenerate('not a callable');
     }
 
     public function testCallables()
     {
-        $config = RefreshAheadCacheBehavior::ensureGenerator([
+        $generator = RefreshAheadCacheBehavior::ensureGenerator([
             'refresh' => function ($cache) {
                 $this->sideEffect = $cache;
                 return true;
@@ -148,13 +148,13 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
         ]);
 
         $this->assertNull($this->sideEffect);
-        $this->assertTrue($config->refresh('cache'));
+        $this->assertTrue($generator->refresh('cache'));
         $this->assertEquals('cache', $this->sideEffect);
 
         $this->sideEffect = null;
 
         $this->assertNull($this->sideEffect);
-        $this->assertEquals('generated', $config->generate('cache'));
+        $this->assertEquals('generated', $generator->generate('cache'));
         $this->assertEquals('cache', $this->sideEffect);
     }
 
@@ -181,7 +181,7 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
         ];
     }
 
-    protected function callableConfig()
+    protected function callableGenerator()
     {
         $callable = function ($cache) {
             $this->sideEffect = $cache;
