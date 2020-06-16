@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 - Refactor: Extract Interface `GeneratorInterface` from `RefreshAheadConfig`
 - Move function `RefreshAheadConfig::ensure()` to `RefreshAheadCacheBehavior::ensureGenerator()`
 - Rename `RefreshAheadConfig` to `CallableGenerator`
+- Refactor: Extract Superclass `BaseGenerator` from `CallableGenerator`
 
 
 [v0.2.0]

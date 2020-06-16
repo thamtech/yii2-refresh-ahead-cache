@@ -7,16 +7,11 @@
 
 namespace thamtech\caching\refreshAhead;
 
-use yii\base\BaseObject;
 use yii\base\InvalidConfigException;
 
 /**
  * CallableGenerator is the default implementation of GeneratorInterface that uses
  * callables for its [[generate()]] and [[refresh()]] methods.
- *
- * @property int $mutexLockTimeout How long to wait for another process to
- *     finish generating a data value before checking for it in cache and
- *     possibly initiating synchronous generation ourselves.
  *
  * @property-write callable|\Closure $refresh callable that will asynchronously
  *     refresh a data value (optional).
@@ -26,7 +21,7 @@ use yii\base\InvalidConfigException;
  *
  * @author Tyler Ham <tyler@thamtech.com>
  */
-class CallableGenerator extends BaseObject implements GeneratorInterface
+class CallableGenerator extends BaseGenerator
 {
     /**
      * @var callable|\Closure asynchronously refresh a data value (optional)
@@ -39,12 +34,6 @@ class CallableGenerator extends BaseObject implements GeneratorInterface
     private $_generateCallable;
 
     /**
-     * @var int time (in seconds) to wait for a lock to be released before
-     *     considering invoking the `generate` callable.
-     */
-    private $_mutexLockTimeout = 0;
-
-    /**
      * {@inheritdoc}
      */
     public function init()
@@ -52,37 +41,6 @@ class CallableGenerator extends BaseObject implements GeneratorInterface
         if (empty($this->_generateCallable)) {
             throw new InvalidConfigException('You must specify a generate callable.');
         }
-    }
-
-    /**
-     * Sets the mutex lock timeout.
-     *
-     * A value of 0 means that we will not wait at all if another process has
-     * acquired the lock. The result will be an immediate call to the
-     * `generate` callable. This is the default behavior.
-     *
-     * To wait for another process holding a lock, set this timeout to a
-     * positive value and make sure that a `mutex` component is configured in
-     * the [[RefreshAheadCacheBehvaior]].
-     *
-     * @param int $timeout 0 or greater
-     * @throws InvalidConfigException if the timeout is not an integer or if it is negative
-     */
-    public function setMutexLockTimeout($timeout)
-    {
-        if (!(is_int($timeout) || ctype_digit($timeout)) || (int)$timeout < 0) {
-            throw new InvalidConfigException('mutexLockTimeout must be an integer 0 or greater.');
-        }
-
-        $this->_mutexLockTimeout = $timeout;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getMutexLockTimeout()
-    {
-        return $this->_mutexLockTimeout;
     }
 
     /**
