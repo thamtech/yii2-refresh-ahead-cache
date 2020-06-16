@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org).
 
 
+[unreleased]
+------------
+
+### Changed
+- Refactor: Extract Interface `GeneratorInterface` from `RefreshAheadConfig`
+
+
 [v0.2.0]
 --------
 

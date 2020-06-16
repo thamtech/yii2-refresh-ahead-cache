@@ -2,6 +2,7 @@
 
 namespace thamtechunit\caching\refreshAhead;
 
+use thamtech\caching\refreshAhead\GeneratorInterface;
 use thamtech\caching\refreshAhead\RefreshAheadCacheBehavior;
 use thamtech\caching\refreshAhead\RefreshAheadConfig;
 use yii\base\InvalidConfigException;
@@ -24,9 +25,9 @@ class MockRefreshAheadCacheBehavior extends RefreshAheadCacheBehavior
         return parent::buildLockName($dataKey);
     }
 
-    public function acquireLock(RefreshAheadConfig $refreshAheadConfig, $dataKey)
+    public function acquireLock(GeneratorInterface $generator, $dataKey)
     {
-        return parent::acquireLock($refreshAheadConfig, $dataKey);
+        return parent::acquireLock($generator, $dataKey);
     }
 
     public function releaseLock($dataKey)
@@ -160,13 +161,13 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
             'dataCache' => MockJoinBuildKeyCache::class,
             'refreshTimeoutCache' => MockJoinBuildKeyCache::class,
         ]);
-        $config = RefreshAheadConfig::ensure([
+        $generator = RefreshAheadConfig::ensure([
             'generate' => function ($cache) {},
             'mutexLockTimeout' => 12,
         ]);
 
         $mutex->acquireResponses['test1/refresh-ahead-generate'] = true;
-        $this->assertTrue($behavior->acquireLock($config, 'test1'));
+        $this->assertTrue($behavior->acquireLock($generator, 'test1'));
         $this->assertEquals([['name' => 'test1/refresh-ahead-generate', 'timeout' => 12]], $mutex->acquireLockCalls);
 
         $mutex->releaseResponses['test1/refresh-ahead-generate'] = true;
@@ -175,7 +176,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $mutex->resetMock();
 
         $mutex->acquireResponses['test1/refresh-ahead-generate'] = false;
-        $this->assertFalse($behavior->acquireLock($config, 'test1'));
+        $this->assertFalse($behavior->acquireLock($generator, 'test1'));
         $this->assertEquals([['name' => 'test1/refresh-ahead-generate', 'timeout' => 12]], $mutex->acquireLockCalls);
         $mutex->resetMock();
     }
@@ -183,9 +184,9 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
     public function testAcquireReleaseLockNoMutex()
     {
         $behavior = Yii::createObject(MockRefreshAheadCacheBehavior::class);
-        $config = RefreshAheadConfig::ensure(function ($cache) {});
+        $generator = RefreshAheadConfig::ensure(function ($cache) {});
 
-        $this->assertFalse($behavior->acquireLock($config, 'test-key'));
+        $this->assertFalse($behavior->acquireLock($generator, 'test-key'));
         $this->assertFalse($behavior->releaseLock('test-key'));
     }
 
@@ -385,7 +386,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $generateCalled = false;
         $generateResponse = 'test value';
 
-        $config = [
+        $generator = [
             'refresh' => function ($cache) use (&$refreshCalled, &$refreshResponse) {
                 $refreshCalled = true;
                 return $refreshResponse;
@@ -400,7 +401,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $lockName = $dataCache->getRefreshTimeoutCache()->buildKey('test1/refresh-ahead-generate');
         $dataCache->mutex->acquireResponses[$lockName] = true;
         $dataCache->mutex->releaseResponses[$lockName] = true;
-        $result = $dataCache->generateAndSet('test1', RefreshAheadConfig::ensure($config), 10);
+        $result = $dataCache->generateAndSet('test1', RefreshAheadConfig::ensure($generator), 10);
         $this->assertEquals([['name' => $lockName, 'timeout' => 2]], $dataCache->mutex->acquireLockCalls);
         $this->assertEquals([$lockName], $dataCache->mutex->releaseLockCalls);
         $this->assertFalse($refreshCalled);
@@ -429,7 +430,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $generateCalled = false;
         $generateResponse = 'test value';
 
-        $config = [
+        $generator = [
             'refresh' => function ($cache) use (&$refreshCalled, &$refreshResponse) {
                 $refreshCalled = true;
                 return $refreshResponse;
@@ -441,7 +442,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
             'mutexLockTimeout' => 2,
         ];
 
-        $result = $dataCache->getRefreshOrSet('test1', $config, 10);
+        $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertFalse($refreshCalled);
         $this->assertTrue($generateCalled);
         $this->assertEquals($result, 'test value');
@@ -451,7 +452,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         // cached 'test value' back
         $generateCalled = false;
         $generateResponse = 'test value 2';
-        $result = $dataCache->getRefreshOrSet('test1', $config, 10);
+        $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertFalse($refreshCalled);
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value');
@@ -459,7 +460,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         // by manually clearing the refreshTimeoutCache, we can test
         // the refresh operation
         $refreshTimeoutCache->flush();
-        $result = $dataCache->getRefreshOrSet('test1', $config, 10);
+        $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertTrue($refreshCalled);
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value');
@@ -468,7 +469,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         // immediately after: ensure that refresh() is not called
         // this time
         $refreshCalled = false;
-        $result = $dataCache->getRefreshOrSet('test1', $config, 10);
+        $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertFalse($refreshCalled);
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value');
@@ -476,7 +477,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         // by manually clearing the dataCache, we can test the
         // generate operation even when refresh is not needed
         $dataCache->flush();
-        $result = $dataCache->getRefreshOrSet('test1', $config, 10);
+        $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertFalse($refreshCalled);
         $this->assertTrue($generateCalled);
         $this->assertEquals($result, 'test value 2');
@@ -486,7 +487,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         // cached 'test value 2' back
         $generateCalled = false;
         $generateResponse = 'test value 3';
-        $result = $dataCache->getRefreshOrSet('test1', $config, 10);
+        $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertFalse($refreshCalled);
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value 2');
@@ -499,7 +500,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $this->assertTrue($refreshTimeoutCache->get($key));
         $refreshTimeoutCache->flush();
         $refreshResponse = false;
-        $result = $dataCache->getRefreshOrSet('test1', $config, 10);
+        $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertTrue($refreshCalled);
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value 2');
@@ -513,7 +514,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $lockName = $dataCache->buildKey('test1/refresh-ahead-generate');
         $dataCache->mutex->acquireResponses[$lockName] = true;
         $dataCache->mutex->releaseResponses[$lockName] = true;
-        $result = $dataCache->generateAndSet('test1', RefreshAheadConfig::ensure($config), 10);
+        $result = $dataCache->generateAndSet('test1', RefreshAheadConfig::ensure($generator), 10);
         $this->assertEquals([['name' => $lockName, 'timeout' => 2]], $dataCache->mutex->acquireLockCalls);
         $this->assertEquals([$lockName], $dataCache->mutex->releaseLockCalls);
         $this->assertFalse($refreshCalled);

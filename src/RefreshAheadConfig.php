@@ -30,7 +30,7 @@ use yii\di\Instance;
  *
  * @author Tyler Ham <tyler@thamtech.com>
  */
-class RefreshAheadConfig extends BaseObject
+class RefreshAheadConfig extends BaseObject implements GeneratorInterface
 {
     /**
      * @var callable|\Closure asynchronously refresh a data value (optional)
@@ -120,9 +120,7 @@ class RefreshAheadConfig extends BaseObject
     }
 
     /**
-     * Gets the mutex lock timeout (in seconds).
-     *
-     * @return int the mutex lock timeout
+     * {@inheritdoc}
      */
     public function getMutexLockTimeout()
     {
@@ -185,11 +183,7 @@ class RefreshAheadConfig extends BaseObject
     }
 
     /**
-     * Invoke the `refresh` callable to queue an asynchronous refresh of the data value.
-     *
-     * @param  yii\Caching\CacheInterface $cache the data cache component
-     *
-     * @return bool true if the refresh has been queued, false otherwise.
+     * {@inheritdoc}
      */
     public function refresh($cache)
     {
@@ -201,11 +195,7 @@ class RefreshAheadConfig extends BaseObject
     }
 
     /**
-     * Invoke the `generate` callable to compute the new data value.
-     *
-     * @param  yii\Caching\CacheInterface $cache the data cache component
-     *
-     * @return mixed the new data value.
+     * {@inheritdoc}
      */
     public function generate($cache)
     {

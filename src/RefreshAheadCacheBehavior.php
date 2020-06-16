@@ -203,8 +203,8 @@ class RefreshAheadCacheBehavior extends Behavior
      *     a simple string or a complex data structure consisting of factors
      *     representing the key.
      *
-     * @param callable|\Closure|RefreshAheadConfig|array|Instance $refreshAheadConfig
-     *     A RefreshAheadConfig object, configuration array, or application
+     * @param callable|\Closure|GeneratorInterface|array|Instance $generator
+     *     A GeneratorInterface object, configuration array, or application
      *     component ID, or a callable that will be used to synchronously
      *     generate and refresh the data value to be cached.
      *     In case the callable returns `false`, the value will not be cached.
@@ -222,7 +222,7 @@ class RefreshAheadCacheBehavior extends Behavior
      *
      * @return mixed generated data value
      */
-    public function getRefreshOrSet($key, $refreshAheadConfig, $duration = null, $dependency = null)
+    public function getRefreshOrSet($key, $generator, $duration = null, $dependency = null)
     {
         $refreshTimeoutKey = $this->buildRefreshAheadKey($key, $this->refreshTimeoutKeySuffix);
         $refreshTimeoutDuration = $this->computeRefreshTimeoutDuration($duration);
@@ -246,8 +246,8 @@ class RefreshAheadCacheBehavior extends Behavior
 
         if ($value !== false) {
             if ($needsRefresh) {
-                $refreshAheadConfig = RefreshAheadConfig::ensure($refreshAheadConfig);
-                if (!$refreshAheadConfig->refresh($this->getDataCache())) {
+                $generator = RefreshAheadConfig::ensure($generator);
+                if (!$generator->refresh($this->getDataCache())) {
                     // refresh was not queued for some reason; unset the
                     // refreshTimeout key so that a subsequent request will try
                     // again to trigger the refresh
@@ -263,7 +263,7 @@ class RefreshAheadCacheBehavior extends Behavior
 
         return $this->generateAndSet(
             $key,
-            $refreshAheadConfig,
+            $generator,
             $duration,
             $dependency
         );
@@ -295,8 +295,8 @@ class RefreshAheadCacheBehavior extends Behavior
      *     a simple string or a complex data structure consisting of factors
      *     representing the key.
      *
-     * @param callable|\Closure|RefreshAheadConfig|array|Instance $refreshAheadConfig
-     *     A RefreshAheadConfig object, configuration array, or application
+     * @param callable|\Closure|GeneratorInterface|array|Instance $generator
+     *     A GeneratorInterface object, configuration array, or application
      *     component ID, or a callable that will be used to synchronously
      *     generate the data value to be cached.
      *     In case the callable returns `false`, the value will not be cached.
@@ -312,9 +312,9 @@ class RefreshAheadCacheBehavior extends Behavior
      *
      * @return mixed generated data value
      */
-    public function generateAndSet($key, $refreshAheadConfig, $duration = null, $dependency = null)
+    public function generateAndSet($key, $generator, $duration = null, $dependency = null)
     {
-        $refreshAheadConfig = RefreshAheadConfig::ensure($refreshAheadConfig);
+        $generator = RefreshAheadConfig::ensure($generator);
 
         // The value needs to be generated, but it is possible another process
         // has already started generating it but it was not yet in cache when
@@ -322,7 +322,7 @@ class RefreshAheadCacheBehavior extends Behavior
         //
         // We will acquire a lock (if a mutex component was specified) before
         // attempting to generate.
-        if ($this->acquireLock($refreshAheadConfig, $key)) {
+        if ($this->acquireLock($generator, $key)) {
             // lock was acquired, possibly after waiting for another process to
             // finish. Let's check cache once more:
             if (($value = $this->getDataCache()->get($key)) !== false) {
@@ -332,7 +332,7 @@ class RefreshAheadCacheBehavior extends Behavior
         }
 
         // Generate the value synchronously
-        $value = $refreshAheadConfig->generate($this->getDataCache());
+        $value = $generator->generate($this->getDataCache());
 
         // we promised not to set the value in cache if the generator returned `false`
         if ($value !== false) {
@@ -352,21 +352,21 @@ class RefreshAheadCacheBehavior extends Behavior
      * A lock is not acquired (and this method returns false) if a mutex
      * component is not configured.
      *
-     * @param  RefreshAheadConfig $refreshAheadConfig the refresh ahead config
+     * @param  GeneratorInterface $generator the generator
      *     which specifies the acquire timeout.
      *
      * @param  mixed $dataKey the key used to store the data value
      *
      * @return bool lock acquiring result
      */
-    protected function acquireLock(RefreshAheadConfig $refreshAheadConfig, $dataKey)
+    protected function acquireLock(GeneratorInterface $generator, $dataKey)
     {
         if (empty($this->mutex)) {
             return false;
         }
 
         $lockName = $this->buildLockName($dataKey);
-        $timeout = $refreshAheadConfig->getMutexLockTimeout();
+        $timeout = $generator->getMutexLockTimeout();
         return $this->mutex->acquire($lockName, $timeout);
     }
 

@@ -185,7 +185,7 @@ callables: one to trigger a refresh asynchronously and one that will refresh
 the data synchronously and return the result.
 
 The usage is similar to the examples above, except that the second parameter
-to `getRefreshOrSet()` will be a `RefreshAheadConfig` object or configuration
+to `getRefreshOrSet()` will be a `GeneratorInterface` object or configuration
 array instead of a single callable. For example,
 
 ```php
@@ -216,7 +216,7 @@ property:
 
 ```php
 <?php
-$refreshAheadConfig = [
+$generator = [
     'refresh' => function ($cache) {
         return $this->taskQueue->append('calculateSomething');
     },
@@ -231,7 +231,7 @@ $refreshAheadConfig = [
     'mutexLockTimeout' => 12,
 ];
 
-$data = $cache->getRefreshOrSet($key, $refreshAheadConfig, $duration, $dependency);
+$data = $cache->getRefreshOrSet($key, $generator, $duration, $dependency);
 ```
 
 By configuring a `mutex` component on the behavior and setting the
@@ -246,13 +246,13 @@ other processes will check for it in cache, find it, and return it without
 having to invoke the `generate` callable.
 
 If your task queue can run asynchronously, such as in a cron task, you can
-use the same `$refreshAheadConfig` in a call to `generateAndSet()` to complete
+use the same `$generator` in a call to `generateAndSet()` to complete
 the refresh process and update the cache value in the background. For example,
 
 ```php
 <?php
 // using the same parameters defined in the previous example:
-$data = $cache->generateAndSet($key, $refreshAheadConfig, $duration, $dependency);
+$data = $cache->generateAndSet($key, $generator, $duration, $dependency);
 ```
 
 This will invoke the `generate` callable (if the item hasn't already been cached
