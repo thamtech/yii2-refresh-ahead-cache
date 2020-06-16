@@ -35,9 +35,22 @@ interface GeneratorInterface
      *
      * @param  yii\Caching\CacheInterface $cache the data cache component
      *
+     * @param mixed $key a key identifying the value to be cached. This can be
+     *     a simple string or a complex data structure consisting of factors
+     *     representing the key.
+     *
+     * @param int $duration default duration in seconds to cache the refreshed
+     *     value.
+     *
+     * @param Dependency $dependency dependency of the cached item. If the
+     *     dependency changes, the corresponding value in the cache will be
+     *     invalidated when it is fetched via [[get()]]. This parameter is
+     *     ignored if [[serializer]] in the
+     *     [[RefreshAheadCacheBehavior::dataCache]] component is `false`.
+     *
      * @return bool true if the refresh has been queued, false otherwise.
      */
-    public function refresh($cache);
+    public function refresh($cache, $key, $duration, $dependency = null);
 
     /**
      * Compute and return the new data value.

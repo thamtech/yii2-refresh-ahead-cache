@@ -101,10 +101,10 @@ class CallableGenerator extends BaseGenerator
     /**
      * {@inheritdoc}
      */
-    public function refresh($cache)
+    public function refresh($cache, $key, $duration, $dependency = null)
     {
         if ($this->_refreshCallable) {
-            return call_user_func($this->_refreshCallable, $cache);
+            return call_user_func($this->_refreshCallable, $cache, $key, $duration, $dependency);
         }
 
         return false;

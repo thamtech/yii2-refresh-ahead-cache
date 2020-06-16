@@ -290,7 +290,7 @@ class RefreshAheadCacheBehavior extends Behavior
         if ($value !== false) {
             if ($needsRefresh) {
                 $generator = $this->ensureGenerator($generator);
-                if (!$generator->refresh($this->getDataCache())) {
+                if (!$generator->refresh($this->getDataCache(), $key, $duration, $dependency)) {
                     // refresh was not queued for some reason; unset the
                     // refreshTimeout key so that a subsequent request will try
                     // again to trigger the refresh

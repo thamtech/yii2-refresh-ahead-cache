@@ -23,7 +23,7 @@ class CallableGeneratorTest extends \thamtechunit\caching\refreshAhead\TestCase
 
         // calling refresh on config generated from a single callable should
         // return false and not call the callable
-        $this->assertFalse($generator->refresh('cache'));
+        $this->assertFalse($generator->refresh('cache', 'key', 0, null));
         $this->assertNull($this->sideEffect);
 
         $this->assertEquals('generated', $generator->generate('cache'));
@@ -94,7 +94,7 @@ class CallableGeneratorTest extends \thamtechunit\caching\refreshAhead\TestCase
     {
         $generator = $this->callableGenerator();
         $generator->setRefresh(null);
-        $this->assertFalse($generator->refresh('cache'));
+        $this->assertFalse($generator->refresh('cache', 'key', 0, null));
         $this->assertNull($this->sideEffect);
     }
 
@@ -148,7 +148,7 @@ class CallableGeneratorTest extends \thamtechunit\caching\refreshAhead\TestCase
         ]);
 
         $this->assertNull($this->sideEffect);
-        $this->assertTrue($generator->refresh('cache'));
+        $this->assertTrue($generator->refresh('cache', 'key', 0, null));
         $this->assertEquals('cache', $this->sideEffect);
 
         $this->sideEffect = null;
