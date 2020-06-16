@@ -9,7 +9,7 @@ namespace thamtech\caching\refreshAhead;
 
 use yii\base\Behavior;
 use yii\base\InvalidConfigException;
-use yii\di\Instance;
+use thamtech\di\Instance;
 use Yii;
 
 /**
@@ -109,30 +109,32 @@ class RefreshAheadCacheBehavior extends Behavior
     private $_refreshTimeoutCache;
 
     /**
-     * Resolves the specified reference into an actual [[CallableGenerator]]
+     * Resolves the specified reference into a [[GernatorInterface]]
      * object.
      *
      * The reference may be specified as a configuration array for a
-     * [[CallableGenerator]] object. In this case, you must specify both
-     * `refresh` and `generate` callables.
+     * [[GernatorInterface]] object. A [[CallableGenerator]] is assumed by
+     * default if the `class` is not specified. In this case, you must specify
+     * both `refresh` and `generate` callables.
      *
      * The reference may be specified as a callable or \Closure, which will be
      * treated as as a synchronous `generate` callable (asynchronous refreshing
-     * is not available in this case).
+     * is not available in this case). The result will be a
+     * [[CallableGenerator]] with only the `generate` callable implemented.
      *
      * The reference may also be a string or an Instance object. If the former,
      * it will be treated as an application component ID or a class name.
      *
-     * @param  callable|\Closure|array|CallableGenerator|string|Instance $reference an
+     * @param  callable|\Closure|array|GernatorInterface|string|Instance $reference an
      *     object or reference to the desired object.
      *
      *     You may specify a reference in terms of an application component ID,
-     *     an Instance object, a CallableGenerator object, or a configuration
+     *     an Instance object, a GernatorInterface object, or a configuration
      *     array for creating the object. If the "class" value is not specified
      *     in the configuration array, it will use the value of
      *     'thamtech\caching\refreshAhead\CallableGenerator'.
      *
-     * @return CallableGenerator the object instance
+     * @return GernatorInterface the object instance
      * @throws InvalidConfigException if the reference is invalid
      */
     public static function ensureGenerator($reference)
@@ -143,7 +145,10 @@ class RefreshAheadCacheBehavior extends Behavior
             ];
         }
 
-        return Instance::ensure($reference, CallableGenerator::class);
+        return Instance::ensureAny($reference, [
+            CallableGenerator::class,
+            GeneratorInterface::class,
+        ]);
     }
 
     /**
