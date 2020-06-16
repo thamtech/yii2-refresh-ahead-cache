@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 
 ### Changed
 - Refactor: Extract Interface `GeneratorInterface` from `RefreshAheadConfig`
+- Move function `RefreshAheadConfig::ensure()` to `RefreshAheadCacheBehavior::ensureGenerator()`
 
 
 [v0.2.0]

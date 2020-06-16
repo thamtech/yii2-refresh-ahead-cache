@@ -2,6 +2,7 @@
 
 namespace thamtechunit\caching\refreshAhead;
 
+use thamtech\caching\refreshAhead\RefreshAheadCacheBehavior;
 use thamtech\caching\refreshAhead\RefreshAheadConfig;
 use Yii;
 
@@ -33,14 +34,14 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
     {
         $this->expectException(\yii\base\InvalidConfigException::class);
         $this->expectExceptionMessage('You must specify a generate callable.');
-        RefreshAheadConfig::ensure([]);
+        RefreshAheadCacheBehavior::ensureGenerator([]);
     }
 
     public function testEnsureNull()
     {
         $this->expectException(\yii\base\InvalidConfigException::class);
         $this->expectExceptionMessage('The required component is not specified.');
-        RefreshAheadConfig::ensure(null);
+        RefreshAheadCacheBehavior::ensureGenerator(null);
     }
 
     /**
@@ -135,7 +136,7 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
 
     public function testCallables()
     {
-        $config = RefreshAheadConfig::ensure([
+        $config = RefreshAheadCacheBehavior::ensureGenerator([
             'refresh' => function ($cache) {
                 $this->sideEffect = $cache;
                 return true;
@@ -186,6 +187,6 @@ class RefreshAheadConfigTest extends \thamtechunit\caching\refreshAhead\TestCase
             $this->sideEffect = $cache;
             return 'generated';
         };
-        return RefreshAheadConfig::ensure($callable);
+        return RefreshAheadCacheBehavior::ensureGenerator($callable);
     }
 }

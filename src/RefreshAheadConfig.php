@@ -9,7 +9,6 @@ namespace thamtech\caching\refreshAhead;
 
 use yii\base\BaseObject;
 use yii\base\InvalidConfigException;
-use yii\di\Instance;
 
 /**
  * RefreshAheadConfig is a configuration object for a particular call
@@ -47,44 +46,6 @@ class RefreshAheadConfig extends BaseObject implements GeneratorInterface
      *     considering invoking the `generate` callable.
      */
     private $_mutexLockTimeout = 0;
-
-    /**
-     * Resolves the specified reference into an actual [[RefreshAheadConfig]]
-     * object.
-     *
-     * The reference may be specified as a configuration array for a
-     * [[RefreshAheadConfig]] object. In this case, you must specify both
-     * `refresh` and `generate` callables.
-     *
-     * The reference may be specified as a callable or \Closure, which will be
-     * treated as as a synchronous `generate` callable (asynchronous refreshing
-     * is not available in this case).
-     *
-     * The reference may also be a string or an Instance object. If the former,
-     * it will be treated as an application component ID or a class name.
-     *
-     * @param  callable|\Closure|array|RefreshAheadConfig|string|Instance $reference an
-     *     object or reference to the desired object.
-     *
-     *     You may specify a reference in terms of an application component ID,
-     *     an Instance object, a RefreshAheadConfig object, or a configuration
-     *     array for creating the object. If the "class" value is not specified
-     *     in the configuration array, it will use the value of
-     *     'thamtech\caching\refreshahead\RefreshAheadConfig'.
-     *
-     * @return RefreshAheadConfig the object instance
-     * @throws InvalidConfigException if the reference is invalid
-     */
-    public static function ensure($reference)
-    {
-        if (is_callable($reference)) {
-            $reference = [
-                'generate' => $reference,
-            ];
-        }
-
-        return Instance::ensure($reference, self::class);
-    }
 
     /**
      * {@inheritdoc}

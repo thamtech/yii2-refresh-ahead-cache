@@ -109,6 +109,44 @@ class RefreshAheadCacheBehavior extends Behavior
     private $_refreshTimeoutCache;
 
     /**
+     * Resolves the specified reference into an actual [[RefreshAheadConfig]]
+     * object.
+     *
+     * The reference may be specified as a configuration array for a
+     * [[RefreshAheadConfig]] object. In this case, you must specify both
+     * `refresh` and `generate` callables.
+     *
+     * The reference may be specified as a callable or \Closure, which will be
+     * treated as as a synchronous `generate` callable (asynchronous refreshing
+     * is not available in this case).
+     *
+     * The reference may also be a string or an Instance object. If the former,
+     * it will be treated as an application component ID or a class name.
+     *
+     * @param  callable|\Closure|array|RefreshAheadConfig|string|Instance $reference an
+     *     object or reference to the desired object.
+     *
+     *     You may specify a reference in terms of an application component ID,
+     *     an Instance object, a RefreshAheadConfig object, or a configuration
+     *     array for creating the object. If the "class" value is not specified
+     *     in the configuration array, it will use the value of
+     *     'thamtech\caching\refreshahead\RefreshAheadConfig'.
+     *
+     * @return RefreshAheadConfig the object instance
+     * @throws InvalidConfigException if the reference is invalid
+     */
+    public static function ensureGenerator($reference)
+    {
+        if (is_callable($reference)) {
+            $reference = [
+                'generate' => $reference,
+            ];
+        }
+
+        return Instance::ensure($reference, RefreshAheadConfig::class);
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function init()
@@ -246,7 +284,7 @@ class RefreshAheadCacheBehavior extends Behavior
 
         if ($value !== false) {
             if ($needsRefresh) {
-                $generator = RefreshAheadConfig::ensure($generator);
+                $generator = $this->ensureGenerator($generator);
                 if (!$generator->refresh($this->getDataCache())) {
                     // refresh was not queued for some reason; unset the
                     // refreshTimeout key so that a subsequent request will try
@@ -314,7 +352,7 @@ class RefreshAheadCacheBehavior extends Behavior
      */
     public function generateAndSet($key, $generator, $duration = null, $dependency = null)
     {
-        $generator = RefreshAheadConfig::ensure($generator);
+        $generator = $this->ensureGenerator($generator);
 
         // The value needs to be generated, but it is possible another process
         // has already started generating it but it was not yet in cache when
