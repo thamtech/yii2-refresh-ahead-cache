@@ -51,11 +51,25 @@ class RefreshAheadCacheBehavior extends Behavior
      *
      *     This should be a value from 0.0 to 1.0. A value of 0 will force an
      *     asynchronous refresh on every request. A value of 1.0 or greater
-     *     effectively disables refreshing-ahead of time since the data value
-     *     would expire before the refresh timeout could trigger a refresh
-     *     ahead of time.
+     *     will be clamped to 1.0 and  effectively disables refreshing-ahead
+     *     of time since the data value would expire before the refresh timeout
+     *     could trigger a refresh ahead of time.
      */
     public $refreshAheadFactor = 0.5;
+
+    /**
+     * @var float the fraction of a data value's duration during which once
+     *     the data value has been refreshed, it should not be regenerated again.
+     *
+     *     This should be a value from 0.0 to (1.0 - [[refreshAheadFactor]]).
+     *     A value of 0 will allow the generator to be called multiple times
+     *     unnecessarily. A value greater than (1.0 - [[refreshAheadFactor]])
+     *     could prefent future refresh cycles from generating a new data value.
+     *
+     *     If not set, this value will default to:
+     *     `(1.0 - refreshAheadFactor) * refreshAheadFactor`.
+     */
+    public $refreshGeneratedFactor = null;
 
     /**
      * @var string a suffix that will be appended to the data value's key to
@@ -76,6 +90,22 @@ class RefreshAheadCacheBehavior extends Behavior
      *     This suffix must be a non-empty string.
      */
     public $refreshTimeoutKeySuffix = 'refresh-ahead-timeout';
+
+    /**
+     * @var string a suffix that will be appended to the data value's key to
+     *     form the refresh generated key, which is used to track when the
+     *     data value was recently refreshed.
+     *
+     *     When the data value's key is an array, this suffix will be appended
+     *     as a new element at the end of the array. When the data value's key
+     *     is a string, this suffix will be concatenated at the end. Otherwise,
+     *     the data value's key will be serialized using the
+     *     [[refreshTimeoutCache]]'s [[yii\caching\Cache::buildKey()]] method
+     *     and this suffix will be concatenated at the end.
+     *
+     *     This suffix must be a non-empty string.
+     */
+    public $refreshGeneratedKeySuffix = 'refresh-ahead-generated';
 
     /**
      * @var string a suffix that will be appended to the data value's key to
@@ -160,12 +190,24 @@ class RefreshAheadCacheBehavior extends Behavior
             throw new InvalidConfigException('The refreshAheadFactor must be a non-negative float. Typically, it should be between 0 and 1.');
         }
 
+        if ($this->refreshAheadFactor > 1.0) {
+            $this->refreshAheadFactor = 1.0;
+        }
+
         if (empty($this->refreshTimeoutKeySuffix)) {
             throw new InvalidConfigException('refreshTimeoutKeySuffix is required.');
         }
 
         if (!empty($this->mutex)) {
             $this->mutex = Instance::ensure($this->mutex, 'yii\mutex\Mutex');
+        }
+
+        if ($this->refreshGeneratedFactor === null) {
+            $this->refreshGeneratedFactor = (1.0 - $this->refreshAheadFactor) * $this->refreshAheadFactor;
+        }
+
+        if (!is_numeric($this->refreshGeneratedFactor) || $this->refreshGeneratedFactor < 0 || $this->refreshGeneratedFactor > (1.0 - $this->refreshAheadFactor)) {
+            throw new InvalidConfigException('The refreshGeneratedFactor must be a non-negative float. Typically, it should be between 0 and 1 and less than (1.0 - refreshAheadFactor).');
         }
     }
 
@@ -358,19 +400,26 @@ class RefreshAheadCacheBehavior extends Behavior
     public function generateAndSet($key, $generator, $duration = null, $dependency = null)
     {
         $generator = $this->ensureGenerator($generator);
+        $refreshGeneratedKey = $this->buildRefreshAheadKey($key, $this->refreshGeneratedKeySuffix);
 
         // The value needs to be generated, but it is possible another process
-        // has already started generating it but it was not yet in cache when
-        // we just checked.
-        //
-        // We will acquire a lock (if a mutex component was specified) before
-        // attempting to generate.
-        if ($this->acquireLock($generator, $key)) {
-            // lock was acquired, possibly after waiting for another process to
-            // finish. Let's check cache once more:
-            if (($value = $this->getDataCache()->get($key)) !== false) {
-                $this->releaseLock($key);
-                return $value;
+        // has already started generating it but it was not yet complete.
+        if (!$this->acquireLock($generator, $key, 0 /* only if available immediately */)) {
+            // The lock could not be acquired immediately, so another process
+            // must be generating the data value. Try to wait for it to finish.
+            if ($this->acquireLock($generator, $key /* defaults to timeout provided by generator */)) {
+                // We acquired the lock after waiting for another process to
+                // finish generating the data value.
+                // Did it actually generate the data value? Let's check the
+                // refreshGenerated key and see if the data value is in cache:
+                $recentlyRefreshed = $this->getRefreshTimeoutCache()->get($refreshGeneratedKey);
+                if ($recentlyRefreshed && ($value = $this->getDataCache()->get($key)) !== false) {
+                    // it was recently refreshed and the data value is cached,
+                    // so we can just return the recently refreshed data value
+                    // rather than generating it again
+                    $this->releaseLock($key);
+                    return $value;
+                }
             }
         }
 
@@ -379,8 +428,12 @@ class RefreshAheadCacheBehavior extends Behavior
 
         // we promised not to set the value in cache if the generator returned `false`
         if ($value !== false) {
-            $setCacheResult = $this->getDataCache()->set($key, $value, $duration, $dependency);
-            if (!$setCacheResult) {
+            $isValueCached = $this->getDataCache()->set($key, $value, $duration, $dependency);
+            if ($isValueCached) {
+                // let's mark that it was recently refreshed
+                $refreshGeneratedDuration = $this->computeRefreshGeneratedDuration($duration);
+                $this->getRefreshTimeoutCache()->set($refreshGeneratedKey, true, $refreshGeneratedDuration);
+            } else {
                 Yii::warning('Failed to set cache value for key ' . serialize($key), __METHOD__);
             }
         }
@@ -392,24 +445,30 @@ class RefreshAheadCacheBehavior extends Behavior
     /**
      * Acquires a lock by data key.
      *
-     * A lock is not acquired (and this method returns false) if a mutex
-     * component is not configured.
+     * A lock is not acquired if a mutex component is not configured, but this
+     * method will return true as if a lock were acquired.
      *
      * @param  GeneratorInterface $generator the generator
      *     which specifies the acquire timeout.
      *
      * @param  mixed $dataKey the key used to store the data value
      *
+     * @param null|int $timeout if specified, the time to wait for a lock to
+     *     be acquired. Otherwise, leave null to use the timeout provided by
+     *     the generator.
+     *
      * @return bool lock acquiring result
      */
-    protected function acquireLock(GeneratorInterface $generator, $dataKey)
+    protected function acquireLock(GeneratorInterface $generator, $dataKey, $timeout = null)
     {
         if (empty($this->mutex)) {
-            return false;
+            return true;
         }
 
         $lockName = $this->buildLockName($dataKey);
-        $timeout = $generator->getMutexLockTimeout();
+        if ($timeout === null) {
+            $timeout = $generator->getMutexLockTimeout();
+        }
         return $this->mutex->acquire($lockName, $timeout);
     }
 
@@ -423,7 +482,7 @@ class RefreshAheadCacheBehavior extends Behavior
     protected function releaseLock($dataKey)
     {
         if (empty($this->mutex)) {
-            return false;
+            return true;
         }
 
         $lockName = $this->buildLockName($dataKey);
@@ -463,6 +522,32 @@ class RefreshAheadCacheBehavior extends Behavior
 
         if ($dataDuration) {
             return ceil($dataDuration * $this->refreshAheadFactor);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Computes the refresh generated duration for the given data duration.
+     *
+     * The refresh generated duration is a fraction of the data duration. The
+     * fraction is specified in the [[refreshGeneratedFactor]].
+     *
+     * @param  int|null $dataDuration the duration that the data value will be
+     *     cached for.
+     *
+     * @return int the duration the refresh generated indicator will prevent
+     *     the data value from being regenerated multiple times during a
+     *     refresh cycle.
+     */
+    protected function computeRefreshGeneratedDuration($dataDuration)
+    {
+        if ($dataDuration === null) {
+            $dataDuration = $this->getDataCache()->defaultDuration;
+        }
+
+        if ($dataDuration) {
+            return floor($dataDuration * $this->refreshGeneratedFactor);
         }
 
         return 0;

@@ -20,14 +20,19 @@ class MockRefreshAheadCacheBehavior extends RefreshAheadCacheBehavior
         return parent::computeRefreshTimeoutDuration($dataDuration);
     }
 
+    public function computeRefreshGeneratedDuration($dataDuration)
+    {
+        return parent::computeRefreshGeneratedDuration($dataDuration);
+    }
+
     public function buildLockName($dataKey)
     {
         return parent::buildLockName($dataKey);
     }
 
-    public function acquireLock(GeneratorInterface $generator, $dataKey)
+    public function acquireLock(GeneratorInterface $generator, $dataKey, $timeout = null)
     {
-        return parent::acquireLock($generator, $dataKey);
+        return parent::acquireLock($generator, $dataKey, $timeout);
     }
 
     public function releaseLock($dataKey)
@@ -82,6 +87,9 @@ class MockMutex extends \yii\mutex\Mutex
     {
         $this->acquireLockCalls[] = ['name' => $name, 'timeout' => $timeout];
         if (isset($this->acquireResponses[$name])) {
+            if (is_array($this->acquireResponses[$name])) {
+                return array_shift($this->acquireResponses[$name]);
+            }
             return $this->acquireResponses[$name];
         }
 
@@ -92,6 +100,9 @@ class MockMutex extends \yii\mutex\Mutex
     {
         $this->releaseLockCalls[] = $name;
         if (isset($this->releaseResponses[$name])) {
+            if (is_array($this->releaseResponses[$name])) {
+                return array_shift($this->releaseResponses[$name]);
+            }
             return $this->releaseResponses[$name];
         }
         return false;
@@ -186,8 +197,8 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $behavior = Yii::createObject(MockRefreshAheadCacheBehavior::class);
         $generator = RefreshAheadCacheBehavior::ensureGenerator(function ($cache) {});
 
-        $this->assertFalse($behavior->acquireLock($generator, 'test-key'));
-        $this->assertFalse($behavior->releaseLock('test-key'));
+        $this->assertTrue($behavior->acquireLock($generator, 'test-key'));
+        $this->assertTrue($behavior->releaseLock('test-key'));
     }
 
     /**
@@ -260,10 +271,50 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
             [5, 0.5, $defaultCache, 3],
             [6, 0.5, $defaultCache, 3],
             [100, 0.75, $defaultCache, 75],
-            [100, 1.5, $defaultCache, 150],
+            [100, 1.5, $defaultCache, 100],
 
             [null, 0.5, $tenCache, 5],
             [null, 0.333, $tenCache, 4],
+        ];
+    }
+
+    /**
+     * @dataProvider computeRefreshGeneratedDurationProvider
+     */
+    public function testComputeRefreshGeneratedDuration($dataDuration, $refreshGeneratedFactor, $dataCache, $expected)
+    {
+        $behavior = Yii::createObject([
+            'class' => MockRefreshAheadCacheBehavior::class,
+            'dataCache' => $dataCache,
+            'refreshGeneratedFactor' => $refreshGeneratedFactor,
+        ]);
+        $this->assertEquals($expected, $behavior->computeRefreshGeneratedDuration($dataDuration));
+    }
+
+    public function computeRefreshGeneratedDurationProvider()
+    {
+        $defaultCache = Yii::createObject('\yii\caching\DummyCache');
+        $tenCache = Yii::createObject([
+            'class' => 'yii\caching\DummyCache',
+            'defaultDuration' => 10,
+        ]);
+
+        return [
+            [null, null, $defaultCache, 0],
+            [0, null, $defaultCache, 0],
+            [5, null, $defaultCache, 1],
+            [6, null, $defaultCache, 1],
+            [100, null, $defaultCache, 25],
+
+            [null, 0.5, $defaultCache, 0],
+            [0, 0.5, $defaultCache, 0],
+            [5, 0.5, $defaultCache, 2],
+            [6, 0.5, $defaultCache, 3],
+            [100, 0.2, $defaultCache, 20],
+            [100, 0.4, $defaultCache, 40],
+
+            [null, 0.5, $tenCache, 5],
+            [null, 0.333, $tenCache, 3],
         ];
     }
 
@@ -324,6 +375,42 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
                 ],
                 InvalidConfigException::class,
                 'The refreshAheadFactor must be a non-negative float. Typically, it should be between 0 and 1.',
+            ],
+
+            [
+                [
+                    'class' => RefreshAheadCacheBehavior::class,
+                    'refreshGeneratedFactor' => 'abc',
+                ],
+                InvalidConfigException::class,
+                'The refreshGeneratedFactor must be a non-negative float. Typically, it should be between 0 and 1 and less than (1.0 - refreshAheadFactor).',
+            ],
+
+            [
+                [
+                    'class' => RefreshAheadCacheBehavior::class,
+                    'refreshGeneratedFactor' => -1,
+                ],
+                InvalidConfigException::class,
+                'The refreshGeneratedFactor must be a non-negative float. Typically, it should be between 0 and 1 and less than (1.0 - refreshAheadFactor).',
+            ],
+
+            [
+                [
+                    'class' => RefreshAheadCacheBehavior::class,
+                    'refreshGeneratedFactor' => '-1',
+                ],
+                InvalidConfigException::class,
+                'The refreshGeneratedFactor must be a non-negative float. Typically, it should be between 0 and 1 and less than (1.0 - refreshAheadFactor).',
+            ],
+
+            [
+                [
+                    'class' => RefreshAheadCacheBehavior::class,
+                    'refreshGeneratedFactor' => 0.6,
+                ],
+                InvalidConfigException::class,
+                'The refreshGeneratedFactor must be a non-negative float. Typically, it should be between 0 and 1 and less than (1.0 - refreshAheadFactor).',
             ],
 
 
@@ -402,7 +489,7 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $dataCache->mutex->acquireResponses[$lockName] = true;
         $dataCache->mutex->releaseResponses[$lockName] = true;
         $result = $dataCache->generateAndSet('test1', RefreshAheadCacheBehavior::ensureGenerator($generator), 10);
-        $this->assertEquals([['name' => $lockName, 'timeout' => 2]], $dataCache->mutex->acquireLockCalls);
+        $this->assertEquals([['name' => $lockName, 'timeout' => 0]], $dataCache->mutex->acquireLockCalls);
         $this->assertEquals([$lockName], $dataCache->mutex->releaseLockCalls);
         $this->assertFalse($refreshCalled);
         $this->assertTrue($generateCalled);
@@ -512,13 +599,41 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         // generateAndSet operation with a mutex
         $dataCache->mutex = Yii::createObject(MockMutex::class);
         $lockName = $dataCache->buildKey('test1/refresh-ahead-generate');
+        $dataCache->mutex->acquireResponses[$lockName] = false;
+        $dataCache->mutex->releaseResponses[$lockName] = true;
+        $result = $dataCache->generateAndSet('test1', RefreshAheadCacheBehavior::ensureGenerator($generator), 10);
+        $this->assertEquals([['name' => $lockName, 'timeout' => 0], ['name' => $lockName, 'timeout' => 2]], $dataCache->mutex->acquireLockCalls);
+        $this->assertEquals([$lockName], $dataCache->mutex->releaseLockCalls);
+        $this->assertFalse($refreshCalled);
+        $this->assertTrue($generateCalled);
+        $this->assertEquals($result, 'test value 3');
+        $generateCalled = false;
+
+        // by manually clearing the dataCache, we can test the
+        // generateAndSet operation with a mutex
+        $dataCache->mutex = Yii::createObject(MockMutex::class);
+        $lockName = $dataCache->buildKey('test1/refresh-ahead-generate');
         $dataCache->mutex->acquireResponses[$lockName] = true;
         $dataCache->mutex->releaseResponses[$lockName] = true;
         $result = $dataCache->generateAndSet('test1', RefreshAheadCacheBehavior::ensureGenerator($generator), 10);
-        $this->assertEquals([['name' => $lockName, 'timeout' => 2]], $dataCache->mutex->acquireLockCalls);
+        $this->assertEquals([['name' => $lockName, 'timeout' => 0]], $dataCache->mutex->acquireLockCalls);
+        $this->assertEquals([$lockName], $dataCache->mutex->releaseLockCalls);
+        $this->assertFalse($refreshCalled);
+        $this->assertTrue($generateCalled);
+        $this->assertEquals($result, 'test value 3');
+        $generateCalled = false;
+
+        // test that the recently cached data value is returned rather than
+        // calling generate
+        $dataCache->mutex = Yii::createObject(MockMutex::class);
+        $lockName = $dataCache->buildKey('test1/refresh-ahead-generate');
+        $dataCache->mutex->acquireResponses[$lockName] = [false, true];
+        $dataCache->mutex->releaseResponses[$lockName] = true;
+        $result = $dataCache->generateAndSet('test1', RefreshAheadCacheBehavior::ensureGenerator($generator), 10);
+        $this->assertEquals([['name' => $lockName, 'timeout' => 0], ['name' => $lockName, 'timeout' => 2]], $dataCache->mutex->acquireLockCalls);
         $this->assertEquals([$lockName], $dataCache->mutex->releaseLockCalls);
         $this->assertFalse($refreshCalled);
         $this->assertFalse($generateCalled);
-        $this->assertEquals($result, 'test value 2');
+        $this->assertEquals($result, 'test value 3');
     }
 }

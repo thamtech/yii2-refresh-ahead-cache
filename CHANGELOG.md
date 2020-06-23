@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 - Rename `RefreshAheadConfig` to `CallableGenerator`
 - Refactor: Extract Superclass `BaseGenerator` from `CallableGenerator`
 
+### Fixed
+- Incorrect concurrent generation logic preventing refresh generation
+
 
 [v0.2.0]
 --------
