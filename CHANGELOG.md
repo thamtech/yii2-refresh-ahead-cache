@@ -7,8 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org).
 
 
-[unreleased]
-------------
+[v0.3.0]
+--------
 
 ### Added
 - Support for any generator implementing `GeneratorInterface`
