@@ -15,11 +15,15 @@
         "thamtech/yii2-di": "^0.1.0",
         "yiisoft/yii2": ">=2.0.14 <2.1"
     },
+    "suggest": {
+        "yiisoft/yii2-queue": "Required in order to use the QueueGenerator"
+    },
     "autoload": {
         "psr-4": { "thamtech\\caching\\refreshAhead\\": "src/" }
     },
     "require-dev": {
         "php": ">=7.2",
-        "phpunit/phpunit": "^8.1"
+        "phpunit/phpunit": "^8.1",
+        "yiisoft/yii2-queue": "~2.3.0"
     }
 }

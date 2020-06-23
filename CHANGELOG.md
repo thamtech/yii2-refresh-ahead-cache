@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 ### Added
 - Support for any generator implementing `GeneratorInterface`
 - Add `$key`, `$duration`, and `$dependency` parameters to `refresh()` signature
+- QueueGenerator
 
 ### Changed
 - Refactor: Extract Interface `GeneratorInterface` from `RefreshAheadConfig`
