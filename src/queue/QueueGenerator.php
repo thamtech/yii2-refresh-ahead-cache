@@ -92,6 +92,11 @@ class QueueGenerator extends BaseGenerator
     public $refreshJobClass = RefreshJob::class;
 
     /**
+     * @var array of additional options of refresh job
+     */
+    public $refreshJobOptions = [];
+
+    /**
      * @var ReferenceProvider reference to a class or object against which
      *    other methods will be called.
      */
@@ -213,7 +218,7 @@ class QueueGenerator extends BaseGenerator
             'key' => $key,
             'duration' => $duration,
             'dependency' => $dependency,
-        ]);
+        ] + $this->refreshJobOptions);
     }
 
     /**
