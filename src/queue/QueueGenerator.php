@@ -10,6 +10,7 @@ namespace thamtech\caching\refreshAhead\queue;
 use thamtech\caching\refreshAhead\BaseGenerator;
 use yii\caching\Dependency;
 use yii\di\Instance;
+use yii\queue\JobInterface;
 use yii\queue\Queue;
 use Yii;
 
@@ -161,8 +162,7 @@ class QueueGenerator extends BaseGenerator
     public function refresh($cache, $key, $duration, $dependency = null)
     {
         $job = $this->buildRefreshJob($cache, $key, $duration, $dependency);
-
-        return $this->queue->push($job) ? true : false;
+        return $this->queueJob($job);
     }
 
     /**
@@ -171,6 +171,18 @@ class QueueGenerator extends BaseGenerator
     public function generate($cache)
     {
         return $this->generateValue->invokeAsMethod($this->defaultContext);
+    }
+
+    /**
+     * Add a job to the queue.
+     *
+     * @param  JobInterface $job
+     *
+     * @return bool true if the job has been queued, false otherwise.
+     */
+    protected function queueJob(JobInterface $job)
+    {
+        return $this->queue->push($job) ? true : false;
     }
 
     /**
