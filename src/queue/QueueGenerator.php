@@ -154,12 +154,7 @@ class QueueGenerator extends BaseGenerator
      */
     public function refresh($cache, $key, $duration, $dependency = null)
     {
-        $job = new RefreshJob([
-            'generatorConfig' => $this->asConfigArray(),
-            'key' => $key,
-            'duration' => $duration,
-            'dependency' => $dependency,
-        ]);
+        $job = $this->buildRefreshJob($cache, $key, $duration, $dependency);
 
         return $this->queue->push($job) ? true : false;
     }
@@ -170,6 +165,36 @@ class QueueGenerator extends BaseGenerator
     public function generate($cache)
     {
         return $this->generateValue->invokeAsMethod($this->defaultContext);
+    }
+
+    /**
+     * Builds a refresh job
+     *
+     * @param  yii\Caching\CacheInterface $cache the data cache component
+     *
+     * @param mixed $key a key identifying the value to be cached. This can be
+     *     a simple string or a complex data structure consisting of factors
+     *     representing the key.
+     *
+     * @param int $duration default duration in seconds to cache the refreshed
+     *     value.
+     *
+     * @param Dependency $dependency dependency of the cached item. If the
+     *     dependency changes, the corresponding value in the cache will be
+     *     invalidated when it is fetched via [[get()]]. This parameter is
+     *     ignored if [[serializer]] in the
+     *     [[RefreshAheadCacheBehavior::dataCache]] component is `false`.
+     *
+     * @return JobInterface
+     */
+    protected function buildRefreshJob($cache, $key, $duration, $dependency)
+    {
+        return new RefreshJob([
+            'generatorConfig' => $this->asConfigArray(),
+            'key' => $key,
+            'duration' => $duration,
+            'dependency' => $dependency,
+        ]);
     }
 
     /**
