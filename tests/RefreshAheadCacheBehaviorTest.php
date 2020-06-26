@@ -516,6 +516,8 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $refreshResponse = true;
         $generateCalled = false;
         $generateResponse = 'test value';
+        $eventNameFired = '';
+        $eventKeyFired = '';
 
         $generator = [
             'refresh' => function ($cache) use (&$refreshCalled, &$refreshResponse) {
@@ -529,10 +531,19 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
             'mutexLockTimeout' => 2,
         ];
 
+        $dataCache->on('valueGenerated', function ($event) use (&$eventNameFired, &$eventKeyFired) {
+            $eventNameFired = $event->name;
+            $eventKeyFired = $event->key;
+        });
         $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertFalse($refreshCalled);
         $this->assertTrue($generateCalled);
+        $this->assertEquals($eventNameFired, 'valueGenerated');
+        $this->assertEquals($eventKeyFired, 'test1');
         $this->assertEquals($result, 'test value');
+        $eventNameFired = '';
+        $eventKeyFired = '';
+        $dataCache->off('valueGenerated');
 
         // now that 'test value' is cached, let's change the generate
         // response and ask again and make sure we get the
@@ -543,14 +554,25 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $this->assertFalse($refreshCalled);
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value');
+        $this->assertEquals($eventNameFired, '');
+        $this->assertEquals($eventKeyFired, '');
 
         // by manually clearing the refreshTimeoutCache, we can test
         // the refresh operation
+        $dataCache->on('refreshRequested', function ($event) use (&$eventNameFired, &$eventKeyFired) {
+            $eventNameFired = $event->name;
+            $eventKeyFired = $event->key;
+        });
         $refreshTimeoutCache->flush();
         $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertTrue($refreshCalled);
+        $this->assertEquals($eventNameFired, 'refreshRequested');
+        $this->assertEquals($eventKeyFired, 'test1');
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value');
+        $eventNameFired = '';
+        $eventKeyFired = '';
+        $dataCache->off('refreshRequested');
 
         // since refresh was just called, it shouldn't be called
         // immediately after: ensure that refresh() is not called
@@ -560,6 +582,8 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $this->assertFalse($refreshCalled);
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value');
+        $this->assertEquals($eventNameFired, '');
+        $this->assertEquals($eventKeyFired, '');
 
         // by manually clearing the dataCache, we can test the
         // generate operation even when refresh is not needed
@@ -568,16 +592,27 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $this->assertFalse($refreshCalled);
         $this->assertTrue($generateCalled);
         $this->assertEquals($result, 'test value 2');
+        $this->assertEquals($eventNameFired, '');
+        $this->assertEquals($eventKeyFired, '');
 
         // now that 'test value 2' is cached, let's change the generate
         // response and ask again and make sure we get the
         // cached 'test value 2' back
+        $dataCache->on('cacheHit', function ($event) use (&$eventNameFired, &$eventKeyFired) {
+            $eventNameFired = $event->name;
+            $eventKeyFired = $event->key;
+        });
         $generateCalled = false;
         $generateResponse = 'test value 3';
         $result = $dataCache->getRefreshOrSet('test1', $generator, 10);
         $this->assertFalse($refreshCalled);
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value 2');
+        $this->assertEquals($eventNameFired, 'cacheHit');
+        $this->assertEquals($eventKeyFired, 'test1');
+        $eventNameFired = '';
+        $eventKeyFired = '';
+        $dataCache->off('cacheHit');
 
         // by manually clearing the refreshTimeoutCache, we can test
         // the refresh operation; this time we want `refresh` to return
@@ -593,6 +628,8 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $this->assertEquals($result, 'test value 2');
         $this->assertFalse($refreshTimeoutCache->exists($key));
         $this->assertFalse($refreshTimeoutCache->get($key));
+        $this->assertEquals($eventNameFired, '');
+        $this->assertEquals($eventKeyFired, '');
         $refreshCalled = false;
 
         // by manually clearing the dataCache, we can test the
@@ -607,6 +644,8 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $this->assertFalse($refreshCalled);
         $this->assertTrue($generateCalled);
         $this->assertEquals($result, 'test value 3');
+        $this->assertEquals($eventNameFired, '');
+        $this->assertEquals($eventKeyFired, '');
         $generateCalled = false;
 
         // by manually clearing the dataCache, we can test the
@@ -621,10 +660,16 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $this->assertFalse($refreshCalled);
         $this->assertTrue($generateCalled);
         $this->assertEquals($result, 'test value 3');
+        $this->assertEquals($eventNameFired, '');
+        $this->assertEquals($eventKeyFired, '');
         $generateCalled = false;
 
         // test that the recently cached data value is returned rather than
         // calling generate
+        $dataCache->on('recentlyRefreshed', function ($event) use (&$eventNameFired, &$eventKeyFired) {
+            $eventNameFired = $event->name;
+            $eventKeyFired = $event->key;
+        });
         $dataCache->mutex = Yii::createObject(MockMutex::class);
         $lockName = $dataCache->buildKey('test1/refresh-ahead-generate');
         $dataCache->mutex->acquireResponses[$lockName] = [false, true];
@@ -635,5 +680,10 @@ class RefreshAheadCacheBehaviorTest extends \thamtechunit\caching\refreshAhead\T
         $this->assertFalse($refreshCalled);
         $this->assertFalse($generateCalled);
         $this->assertEquals($result, 'test value 3');
+        $this->assertEquals($eventNameFired, 'recentlyRefreshed');
+        $this->assertEquals($eventKeyFired, 'test1');
+        $eventNameFired = '';
+        $eventKeyFired = '';
+        $dataCache->off('recentlyRefreshed');
     }
 }

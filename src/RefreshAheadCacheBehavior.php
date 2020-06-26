@@ -46,6 +46,26 @@ use Yii;
 class RefreshAheadCacheBehavior extends Behavior
 {
     /**
+     * @event CacheEvent
+     */
+    const EVENT_CACHE_HIT = 'cacheHit';
+
+    /**
+     * @event CacheEvent
+     */
+    const EVENT_REFRESH_REQUESTED = 'refreshRequested';
+
+    /**
+     * @event CacheEvent
+     */
+    const EVENT_RECENTLY_REFRESHED = 'recentlyRefreshed';
+
+    /**
+     * @event CacheEvent
+     */
+    const EVENT_VALUE_GENERATED = 'valueGenerated';
+
+    /**
      * @var float the fraction of a data value's duration that should pass
      *     before a refresh is triggered.
      *
@@ -330,9 +350,13 @@ class RefreshAheadCacheBehavior extends Behavior
         $value = $this->getDataCache()->get($key);
 
         if ($value !== false) {
+            $this->fireEvent(self::EVENT_CACHE_HIT, $key, $value);
+
             if ($needsRefresh) {
                 $generator = $this->ensureGenerator($generator);
-                if (!$generator->refresh($this->getDataCache(), $key, $duration, $dependency)) {
+                if ($generator->refresh($this->getDataCache(), $key, $duration, $dependency)) {
+                    $this->fireEvent(self::EVENT_REFRESH_REQUESTED, $key, $value);
+                } else {
                     // refresh was not queued for some reason; unset the
                     // refreshTimeout key so that a subsequent request will try
                     // again to trigger the refresh
@@ -418,6 +442,7 @@ class RefreshAheadCacheBehavior extends Behavior
                     // so we can just return the recently refreshed data value
                     // rather than generating it again
                     $this->releaseLock($key);
+                    $this->fireEvent(self::EVENT_RECENTLY_REFRESHED, $key, $value);
                     return $value;
                 }
             }
@@ -425,6 +450,7 @@ class RefreshAheadCacheBehavior extends Behavior
 
         // Generate the value synchronously
         $value = $generator->generate($this->getDataCache());
+        $this->fireEvent(self::EVENT_VALUE_GENERATED, $key, $value);
 
         // we promised not to set the value in cache if the generator returned `false`
         if ($value !== false) {
@@ -577,6 +603,31 @@ class RefreshAheadCacheBehavior extends Behavior
         }
 
         return [$suffix, $dataKey];
+    }
+
+    /**
+     * Fire a cache event for the given key and value.
+     *
+     * @param string $name event name
+     *
+     * @param mixed $key a key identifying the cached value. This can be
+     *     a simple string or a complex data structure consisting of factors
+     *     representing the key.
+     *
+     * @param mixed $value the cached value
+     */
+    protected function fireEvent($name, $key, $value)
+    {
+        if (empty($this->owner) || !$this->owner->hasEventHandlers($name)) {
+            return;
+        }
+
+        $event = new CacheEvent([
+            'sender' => $this,
+            'key' => $key,
+            'value' => $value,
+        ]);
+        $this->owner->trigger($name, $event);
     }
 
     /**

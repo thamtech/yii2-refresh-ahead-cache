@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 
 ### Added
 - Ability to specify a RefreshJob class name
+- CacheEvents that are fired on cache hit, refresh requested, recently refreshed,
+  or value generated.
 
 
 [v0.3.0]
