@@ -11,6 +11,7 @@ use thamtech\caching\refreshAhead\BaseGenerator;
 use yii\caching\Dependency;
 use yii\di\Instance;
 use yii\queue\Queue;
+use Yii;
 
 /**
  * QueueGenerator is a GeneraterInterface that supports queueing
@@ -83,6 +84,11 @@ class QueueGenerator extends BaseGenerator
      * @var Queue
      */
     public $queue = 'queue';
+
+    /**
+     * @var string refresh job class name
+     */
+    public $refreshJobClass = RefreshJob::class;
 
     /**
      * @var ReferenceProvider reference to a class or object against which
@@ -189,7 +195,8 @@ class QueueGenerator extends BaseGenerator
      */
     protected function buildRefreshJob($cache, $key, $duration, $dependency)
     {
-        return new RefreshJob([
+        return Yii::createObject([
+            'class' => $this->refreshJobClass,
             'generatorConfig' => $this->asConfigArray(),
             'key' => $key,
             'duration' => $duration,
