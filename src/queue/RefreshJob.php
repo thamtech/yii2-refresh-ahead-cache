@@ -47,8 +47,18 @@ class RefreshJob extends BaseObject implements JobInterface
      */
     public function execute($queue)
     {
-        $generator = Yii::createObject($this->generatorConfig);
+        $generator = $this->getGenerator();
         $refreshAhead = $generator->getRefreshAhead();
         $refreshAhead->generateAndSet($this->key, $generator, $this->duration, $this->dependency);
+    }
+
+    /**
+     * Get the generator
+     *
+     * @return GeneratorInterface
+     */
+    protected function getGenerator()
+    {
+        return Yii::createObject($this->generatorConfig);
     }
 }
