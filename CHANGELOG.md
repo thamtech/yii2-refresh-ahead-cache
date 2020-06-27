@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org).
 
 
+[v0.3.3]
+--------
+
+### Added
+- Track and report duration of events
+
+
 [v0.3.2]
 --------
 

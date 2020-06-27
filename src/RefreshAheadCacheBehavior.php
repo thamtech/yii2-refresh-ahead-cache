@@ -347,15 +347,20 @@ class RefreshAheadCacheBehavior extends Behavior
         $needsRefresh = $this->getRefreshTimeoutCache()
             ->add($refreshTimeoutKey, true, $refreshTimeoutDuration, $dependency);
 
+        $startTime = microtime(true);
         $value = $this->getDataCache()->get($key);
+        $endTime = microtime(true);
 
         if ($value !== false) {
-            $this->fireEvent(self::EVENT_CACHE_HIT, $key, $value);
+            $this->fireEvent(self::EVENT_CACHE_HIT, $key, $value, $endTime - $startTime);
 
             if ($needsRefresh) {
                 $generator = $this->ensureGenerator($generator);
+
+                $startTime = microtime(true);
                 if ($generator->refresh($this->getDataCache(), $key, $duration, $dependency)) {
-                    $this->fireEvent(self::EVENT_REFRESH_REQUESTED, $key, $value);
+                    $endTime = microtime(true);
+                    $this->fireEvent(self::EVENT_REFRESH_REQUESTED, $key, $value, $endTime - $startTime);
                 } else {
                     // refresh was not queued for some reason; unset the
                     // refreshTimeout key so that a subsequent request will try
@@ -436,21 +441,25 @@ class RefreshAheadCacheBehavior extends Behavior
                 // finish generating the data value.
                 // Did it actually generate the data value? Let's check the
                 // refreshGenerated key and see if the data value is in cache:
+                $startTime = microtime(true);
                 $recentlyRefreshed = $this->getRefreshTimeoutCache()->get($refreshGeneratedKey);
                 if ($recentlyRefreshed && ($value = $this->getDataCache()->get($key)) !== false) {
                     // it was recently refreshed and the data value is cached,
                     // so we can just return the recently refreshed data value
                     // rather than generating it again
                     $this->releaseLock($key);
-                    $this->fireEvent(self::EVENT_RECENTLY_REFRESHED, $key, $value);
+                    $endTime = microtime(true);
+                    $this->fireEvent(self::EVENT_RECENTLY_REFRESHED, $key, $value, $endTime - $startTime);
                     return $value;
                 }
             }
         }
 
         // Generate the value synchronously
+        $startTime = microtime(true);
         $value = $generator->generate($this->getDataCache());
-        $this->fireEvent(self::EVENT_VALUE_GENERATED, $key, $value);
+        $endTime = microtime(true);
+        $this->fireEvent(self::EVENT_VALUE_GENERATED, $key, $value, $endTime - $startTime);
 
         // we promised not to set the value in cache if the generator returned `false`
         if ($value !== false) {
@@ -615,8 +624,10 @@ class RefreshAheadCacheBehavior extends Behavior
      *     representing the key.
      *
      * @param mixed $value the cached value
+     *
+     * @param float $duration duration of event in seconds
      */
-    protected function fireEvent($name, $key, $value)
+    protected function fireEvent($name, $key, $value, $duration)
     {
         if (empty($this->owner) || !$this->owner->hasEventHandlers($name)) {
             return;
@@ -626,6 +637,7 @@ class RefreshAheadCacheBehavior extends Behavior
             'sender' => $this,
             'key' => $key,
             'value' => $value,
+            'duration' => $duration,
         ]);
         $this->owner->trigger($name, $event);
     }

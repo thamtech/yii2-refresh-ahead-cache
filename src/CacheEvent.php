@@ -27,4 +27,9 @@ class CacheEvent extends Event
      * @var mixed the cached value
      */
     public $value;
+
+    /**
+     * @var float duration of event in seconds
+     */
+    public $duration;
 }
