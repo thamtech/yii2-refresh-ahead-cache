@@ -56,6 +56,14 @@ class MockGenerator implements GeneratorInterface
 
 class RefreshJobTest extends \thamtechunit\caching\refreshAhead\TestCase
 {
+    protected function setUp(): void
+    {
+        MockGenerator::$refreshCalls = [];
+        MockGenerator::$refreshResponses = [];
+        MockGenerator::$generateCalls = [];
+        MockGenerator::$generateResponses = [];
+    }
+
     public function testExecute()
     {
         $job = Yii::createObject([
@@ -73,5 +81,45 @@ class RefreshJobTest extends \thamtechunit\caching\refreshAhead\TestCase
         $job->execute(null);
         $this->assertCount(0, MockGenerator::$refreshCalls);
         $this->assertEquals([true], MockGenerator::$generateCalls);
+    }
+
+    public function testExecuteNotExpired()
+    {
+        $job = Yii::createObject([
+            'class' => RefreshJob::class,
+            'generatorConfig' => [
+                'class' => MockGenerator::class,
+            ],
+            'key' => 'abc123',
+            'duration' => 20,
+            'dependency' => 'test123',
+            'expiresAt' => time() + 10,
+        ]);
+
+        MockGenerator::$generateResponses[] = 'result123';
+
+        $job->execute(null);
+        $this->assertCount(0, MockGenerator::$refreshCalls);
+        $this->assertEquals([true], MockGenerator::$generateCalls);
+    }
+
+    public function testExecuteExpired()
+    {
+        $job = Yii::createObject([
+            'class' => RefreshJob::class,
+            'generatorConfig' => [
+                'class' => MockGenerator::class,
+            ],
+            'key' => 'abc123',
+            'duration' => 20,
+            'dependency' => 'test123',
+            'expiresAt' => time() - 10,
+        ]);
+
+        MockGenerator::$generateResponses[] = 'result123';
+
+        $job->execute(null);
+        $this->assertCount(0, MockGenerator::$refreshCalls);
+        $this->assertCount(0, MockGenerator::$generateCalls);
     }
 }

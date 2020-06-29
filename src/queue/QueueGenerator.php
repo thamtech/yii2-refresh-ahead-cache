@@ -117,6 +117,14 @@ class QueueGenerator extends BaseGenerator
     public $generateValue;
 
     /**
+     * @var null|false|int number of seconds before the refresh job expires.
+     *     Set to `false` if you don't want refresh jobs to expire. Leave
+     *     `null` (the default) for the TTL to automatically be calculated as
+     *     `ceil($duration * (1.0 - $refreshAhead->refreshAheadFactor))`.
+     */
+    public $refreshJobTtl = null;
+
+    /**
      * @var mixed|RefreshAheadCacheBehavior the RefreshAheadCacheBehavior or its
      *     behavior owner.
      */
@@ -218,6 +226,7 @@ class QueueGenerator extends BaseGenerator
             'key' => $key,
             'duration' => $duration,
             'dependency' => $dependency,
+            'expiresAt' => $this->getExpiresAt($duration),
         ] + $this->refreshJobOptions);
     }
 
@@ -236,5 +245,39 @@ class QueueGenerator extends BaseGenerator
             'refreshAhead' => $this->refreshAhead instanceof ReferenceProvider ? $this->refreshAhead->asConfigArray() : $this->refreshAhead,
             'generateValue' => $this->generateValue instanceof ReferenceProvider ? $this->generateValue->asConfigArray() : $this->generateValue,
         ];
+    }
+
+    /**
+     * Get expires-at time
+     *
+     * @param int $duration default duration in seconds to cache the refreshed
+     *     value.
+     *
+     * @return false|int false to disable expiration; otherwise an integer
+     *     representing the unix timestamp at which the refresh job should
+     *     expire.
+     */
+    protected function getExpiresAt($duration)
+    {
+        if ($this->refreshJobTtl === false) {
+            return false;
+        }
+
+        if ($this->refreshJobTtl !== null) {
+            return time() + $this->refreshJobTtl;
+        }
+
+        if ($duration === null) {
+            $duration = $this->getRefreshAhead()->getDataCache()->defaultDuration;
+        }
+
+        if (!$duration) {
+            // infinite cache duration,
+            return false;
+        }
+
+        // refreshJobTtl is null, and duration is finite: calculate expiresAt
+        $refreshAheadFactor = $this->getRefreshAhead()->refreshAheadFactor;
+        return time() + ceil($duration * (1.0 - $refreshAheadFactor));
     }
 }

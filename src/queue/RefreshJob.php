@@ -43,10 +43,21 @@ class RefreshJob extends BaseObject implements JobInterface
     public $dependency;
 
     /**
+     * @var false|int unix timestamp at which this job expires. After this time, the
+     * [[exeucte()]] method will essentially be a no-op. Leave false to never
+     * expire.
+     */
+    public $expiresAt = false;
+
+    /**
      * {@inheritdoc}
      */
     public function execute($queue)
     {
+        if (!empty($this->expiresAt) && time() > $this->expiresAt) {
+            return;
+        }
+
         $generator = $this->getGenerator();
         $refreshAhead = $generator->getRefreshAhead();
         $refreshAhead->generateAndSet($this->key, $generator, $this->duration, $this->dependency);
