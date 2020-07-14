@@ -144,12 +144,12 @@ class ReferenceProvider extends BaseObject
     /**
      * Invoke reference as a method name on the context.
      *
-     * @param mixed $context context in which to call the method if [[context]]
+     * @param mixed $defaultContext context in which to call the method if [[context]]
      *     property isn't set.
      *
      * @return mixed the result of invoking the reference as a method
      */
-    public function invokeAsMethod($context = null)
+    public function invokeAsMethod($defaultContext = null)
     {
         if (!is_scalar($this->reference)) {
             throw new InvalidConfigException('Non-string reference cannot be invoked as a method.');
@@ -172,7 +172,7 @@ class ReferenceProvider extends BaseObject
 
         $invokeContext = $this->context;
         if ($invokeContext === null) {
-            $invokeContext = $context;
+            $invokeContext = $defaultContext;
         }
 
         if ($invokeContext instanceof self) {
