@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 [v0.3.5]
 --------
 
+### Added
+- Add optional `$transientParams` to ReferenceProvider
+
 ### Changed
 - Relax instanceof checks to `self` instead of `static`
 

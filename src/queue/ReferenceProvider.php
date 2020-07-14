@@ -79,9 +79,25 @@ class ReferenceProvider extends BaseObject
     public $reference = '';
 
     /**
-     * @var array method or constructor parameters
+     * @var array method or constructor parameters. These WILL be included
+     * in the array provided [[asConfigArray()]]. See also [[transientParams]].
      */
     public $params = [];
+
+    /**
+     * @var array method or constructor parameters. These WILL NOT be included
+     * in the array provided by [[asConfigArray()]]. If provided these will be
+     * preferred over [[params]] for method or construct params.
+     *
+     * Transient Parameters are useful when a method or constructor can accept
+     * either identifiers or the objects they identify. The identifiers can be
+     * set in [[params]] for possible serialization, and the objects they
+     * represent can be set in [[transientParams]]. Then object or method
+     * calls that occur in the same process can use the existing objects in
+     * [[transientParams]], saving a potentially costly lookup using the
+     * identifiers in [[params]].
+     */
+    public $transientParams;
 
     /**
      * @var null|string|ReferenceProvider|mixed class name, object, or a
@@ -115,7 +131,13 @@ class ReferenceProvider extends BaseObject
             return $this->reference;
         }
 
-        $this->context = Yii::createObject($this->reference, $this->params);
+        $params = $this->params;
+        // use transient params instead if provided
+        if (isset($this->transientParams)) {
+            $params = $this->transientParams;
+        }
+
+        $this->context = Yii::createObject($this->reference, $params);
         return $this->context;
     }
 
@@ -137,6 +159,17 @@ class ReferenceProvider extends BaseObject
             throw new InvalidConfigException('Params must be an array to invoke reference as a method.');
         }
 
+        $params = $this->params;
+
+        if (isset($this->transientParams)) {
+            if (!is_array($this->transientParams)) {
+                throw new InvalidConfigException('Transient Params must be an array to invoke reference as a method.');
+            }
+
+            // use transient params instead if provided
+            $params = $this->transientParams;
+        }
+
         $invokeContext = $this->context;
         if ($invokeContext === null) {
             $invokeContext = $context;
@@ -147,7 +180,7 @@ class ReferenceProvider extends BaseObject
         }
 
         $callable = [$invokeContext, $this->reference];
-        return call_user_func_array($callable, $this->params);
+        return call_user_func_array($callable, $params);
     }
 
     /**

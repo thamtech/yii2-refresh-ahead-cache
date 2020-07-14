@@ -121,6 +121,42 @@ class ReferenceProviderTest extends \thamtechunit\caching\refreshAhead\TestCase
         ], $provider->asConfigArray());
     }
 
+    public function testCreateObjectWithTransientParams()
+    {
+        $provider = Yii::createObject([
+            'class' => ReferenceProvider::class,
+            'reference' => [
+                'class' => 'yii\web\BadRequestHttpException',
+            ],
+            'params' => [
+                'Def 456',
+                388,
+            ],
+            'transientParams' => [
+                'Abc 123',
+                499,
+            ],
+        ]);
+
+        $obj = $provider->asObject();
+        $this->assertInstanceOf('yii\web\BadRequestHttpException', $obj);
+        $this->assertSame($obj, $provider->context);
+        $this->assertEquals('Abc 123', $obj->getMessage());
+        $this->assertEquals(499, $obj->getCode());
+
+        $this->assertEquals([
+            'class' => ReferenceProvider::class,
+            'reference' => [
+                'class' => 'yii\web\BadRequestHttpException',
+            ],
+            'params' => [
+                'Def 456',
+                388,
+            ],
+            'context' => null,
+        ], $provider->asConfigArray());
+    }
+
     public function testNonScalarMethodReference()
     {
         $provider = Yii::createObject([
@@ -150,6 +186,21 @@ class ReferenceProviderTest extends \thamtechunit\caching\refreshAhead\TestCase
         $provider->invokeAsMethod();
     }
 
+    public function testInvalidTransientParamsMethodReference()
+    {
+        $provider = Yii::createObject([
+            'class' => ReferenceProvider::class,
+            'reference' => 'validate',
+            'params' => ['a', 'b'],
+            'transientParams' => 'non-array',
+        ]);
+
+        $this->expectException(InvalidConfigException::class);
+        $this->expectExceptionMessage('Transient Params must be an array to invoke reference as a method.');
+
+        $provider->invokeAsMethod();
+    }
+
     public function testMethodDefaultContext()
     {
         $context = Yii::createObject([
@@ -166,6 +217,27 @@ class ReferenceProviderTest extends \thamtechunit\caching\refreshAhead\TestCase
         ]);
 
         $this->assertTrue($provider->invokeAsMethod());
+    }
+
+    public function testMethodDefaultContextTransientParams()
+    {
+        $context = Yii::createObject([
+            'class' => 'yii\validators\StringValidator',
+            'min' => 3,
+        ]);
+        $provider = Yii::createObject([
+            'class' => ReferenceProvider::class,
+            'reference' => 'validate',
+            'params' => [
+                'abc123'
+            ],
+            'transientParams' => [
+                'ab',
+            ],
+            'context' => $context,
+        ]);
+
+        $this->assertFalse($provider->invokeAsMethod());
     }
 
     public function testMethodProvidedContext()
