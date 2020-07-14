@@ -142,7 +142,7 @@ class ReferenceProvider extends BaseObject
             $invokeContext = $context;
         }
 
-        if ($invokeContext instanceof static) {
+        if ($invokeContext instanceof self) {
             $invokeContext = $invokeContext->asObject();
         }
 
@@ -157,7 +157,7 @@ class ReferenceProvider extends BaseObject
      */
     public function asConfigArray()
     {
-        $context = $this->context instanceof static ? $this->context->asConfigArray() : $this->context;
+        $context = $this->context instanceof self ? $this->context->asConfigArray() : $this->context;
         return [
             'class' => static::class,
             'reference' => $this->reference,

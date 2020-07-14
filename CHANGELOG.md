@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org).
 
 
+[v0.3.5]
+--------
+
+### Changed
+- Relax instanceof checks to `self` instead of `static`
+
+
 [v0.3.4]
 --------
 
